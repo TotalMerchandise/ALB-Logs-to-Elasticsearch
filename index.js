@@ -47,7 +47,7 @@ var creds = new AWS.EnvironmentCredentials('AWS');
 function s3LogsToES(bucket, key, context, lineStream, recordStream) {
     // Note: The Lambda function should be configured to filter for .log.gz files
     // (as part of the Event Source "suffix" setting).
-   
+
     var s3Stream = s3.getObject({Bucket: bucket, Key: key}).createReadStream();
     var gunzipStream = zlib.createGunzip();
     // Flow: S3 file stream -> Log Line stream -> Log Record stream -> ES
@@ -78,6 +78,8 @@ function postDocumentToES(doc, context) {
     req.body = doc;
     req.headers['presigned-expires'] = false;
     req.headers['Host'] = endpoint.host;
+    req.headers['Content-Type'] = 'application/json';
+
     // Sign the request (Sigv4)
     var signer = new AWS.Signers.V4(req, 'es');
     signer.addAuthorization(creds, new Date());
@@ -131,14 +133,14 @@ exports.handler = function(event, context) {
 function parse(line) {
 
     var url = require('url');
-    
+
     // Fields in log lines are essentially space separated,
     // but are also quote-enclosed for strings containing spaces.
     var field_names = [
         'type',
         'timestamp',
         'elb',
-        'client', 
+        'client',
         'target',
         'request_processing_time',
         'target_processing_time',
@@ -152,7 +154,7 @@ function parse(line) {
         'ssl_cipher',
         'ssl_protocol',
         'target_group_arn',
-        'trace_id',   
+        'trace_id',
         'domain_name',
         'chosen_cert_arn',
         'waf_number',
@@ -184,7 +186,7 @@ function parse(line) {
                 within_quotes = true;
             }
             else if (c == " ") {
-                // Separator. Moving on to the next field. 
+                // Separator. Moving on to the next field.
 
                 // Convert to numeric type if appropriate.
                 // This is needed to make sure Elasticsearch gets the
@@ -210,7 +212,7 @@ function parse(line) {
                 // Ending a quoted field.
                 within_quotes = false;
             }
-            
+
             else {
                 // Part of this quoted field.
                 current_value += c;
@@ -260,11 +262,11 @@ function parse(line) {
             parsed['request_uri_port']   = uri.port     ? uri.port     : '';
             parsed['request_uri_path']   = uri.pathname ? uri.pathname : '';
             parsed['request_uri_query']  = uri.query    ? uri.query    : '';
-        } 
+        }
 
         // Otherwise, we just leave them out.
         catch (e) {}
-    } 
+    }
 
     // All done.
     return parsed;
